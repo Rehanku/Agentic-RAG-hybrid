@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import "./index.css";
 
-const API = "http://localhost:8000";
+// Resolved at build time via VITE_API_URL env var; falls back to local dev server
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 function useApi() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("dr_apikey") || "");
