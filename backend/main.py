@@ -3,11 +3,11 @@ import uuid
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Optional
+
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+
 from pydantic import BaseModel
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -15,20 +15,23 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.chains import ConversationalRetrievalChain
-from langchain.prompts import PromptTemplate
+
 
 from sentence_transformers import CrossEncoder
 from duckduckgo_search import DDGS
 
 import json
-import asyncio
+
 
 app = FastAPI(title="DeepRead API", version="2.0.0")
 
+# Read allowed origins from env var; comma-separated list
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
