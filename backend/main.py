@@ -42,8 +42,13 @@ sessions: dict = {}
 INDEXES_DIR = Path("indexes")
 INDEXES_DIR.mkdir(exist_ok=True)
 
-cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+# Model configuration — override via environment variables
+RERANKER_MODEL = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+cross_encoder = CrossEncoder(RERANKER_MODEL)
+embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
 
 class ChatRequest(BaseModel):
@@ -138,7 +143,7 @@ async def summarize(req: SummaryRequest):
     context = "\n\n".join([d.page_content for d in sample_docs])
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=GEMINI_MODEL,
         google_api_key=req.api_key,
         temperature=0.3,
     )
@@ -202,7 +207,7 @@ async def chat(req: ChatRequest):
             ])
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=GEMINI_MODEL,
         google_api_key=req.api_key,
         temperature=0.1,
     )
