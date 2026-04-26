@@ -1,0 +1,27 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Local FAISS indexes (rebuilt at runtime)
+indexes/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dev/test artifacts
+*.log
+*.tmp
+.DS_Store
+
+# Git
+.git/
+.gitignore
