@@ -42,6 +42,19 @@ sessions: dict = {}
 INDEXES_DIR = Path("indexes")
 INDEXES_DIR.mkdir(exist_ok=True)
 
+# Reconcile any FAISS indexes that survived a warm restart
+for _index_dir in INDEXES_DIR.iterdir():
+    if _index_dir.is_dir() and ((_index_dir / "index.faiss").exists()):
+        _sid = _index_dir.name
+        sessions[_sid] = {
+            "filename": "restored-session",
+            "page_count": 0,
+            "chunk_count": 0,
+            "chat_history": [],
+            "index_path": str(_index_dir),
+        }
+
+
 # Model configuration — override via environment variables
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
