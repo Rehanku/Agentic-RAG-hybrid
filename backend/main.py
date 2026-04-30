@@ -278,4 +278,23 @@ async def clear_session(session_id: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "2.0.0"}
+    return {
+        "status": "ok",
+        "version": "2.0.0",
+        "active_sessions": len(sessions),
+        "embedding_model": EMBEDDING_MODEL,
+        "reranker_model": RERANKER_MODEL,
+        "gemini_model": GEMINI_MODEL,
+    }
+
+
+@app.get("/ready")
+async def ready():
+    """Liveness probe: confirms models are loaded and the server is ready."""
+    try:
+        _ = embeddings.embed_query("ping")
+        return {"ready": True}
+    except Exception as e:
+        from fastapi import Response
+        return Response(content=str(e), status_code=503)
+
