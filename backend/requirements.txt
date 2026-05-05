@@ -1,15 +1,30 @@
-fastapi
-uvicorn[standard]
-python-multipart
-langchain
-langchain-core
-langchain-community
-langchain-huggingface
-langchain-google-genai
-langchain-text-splitters
-faiss-cpu
-pypdf
-sentence-transformers
-duckduckgo-search
-pydantic
-protobuf
+# DeepRead backend dependencies — pinned for reproducible Docker builds
+# Run `pip-compile requirements.in` to regenerate if upgrading
+
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+pydantic==2.10.3
+
+# LangChain ecosystem
+langchain==0.3.9
+langchain-core==0.3.21
+langchain-community==0.3.9
+langchain-huggingface==0.1.2
+langchain-google-genai==2.0.7
+langchain-text-splitters==0.3.2
+
+# Vector store
+faiss-cpu==1.9.0
+
+# PDF parsing
+pypdf==5.1.0
+
+# Embeddings & reranking
+sentence-transformers==3.3.1
+
+# Web search
+duckduckgo-search==7.1.1
+
+# Serialization
+protobuf==5.29.1
