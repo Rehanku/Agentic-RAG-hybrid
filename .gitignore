@@ -1,9 +1,33 @@
+# Python
 venv/
-frontend/node_modules/
+.venv/
 __pycache__/
 backend/__pycache__/
 *.pyc
+*.pyo
+
+# Environment secrets
 .env
-.DS_Store
-frontend/dist/
+.env.local
+.env.production
+
+# FAISS indexes (built at runtime)
 indexes/
+backend/indexes/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Docker
+*.tar
+
+# IDE
+.vscode/
+.idea/
+*.swp
