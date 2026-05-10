@@ -21,13 +21,17 @@ from sentence_transformers import CrossEncoder
 from duckduckgo_search import DDGS
 
 import json
+import logging
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("deepread")
 
 app = FastAPI(title="DeepRead API", version="2.0.0")
 
 # Read allowed origins from env var; comma-separated list
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+logger.info(f"CORS Allowed Origins: {ALLOWED_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,6 +47,7 @@ INDEXES_DIR = Path("indexes")
 INDEXES_DIR.mkdir(exist_ok=True)
 
 # Reconcile any FAISS indexes that survived a warm restart
+reconciled_count = 0
 for _index_dir in INDEXES_DIR.iterdir():
     if _index_dir.is_dir() and ((_index_dir / "index.faiss").exists()):
         _sid = _index_dir.name
@@ -53,15 +58,20 @@ for _index_dir in INDEXES_DIR.iterdir():
             "chat_history": [],
             "index_path": str(_index_dir),
         }
-
+        reconciled_count += 1
+if reconciled_count > 0:
+    logger.info(f"Restored {reconciled_count} FAISS indexes from disk.")
 
 # Model configuration — override via environment variables
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+logger.info(f"Initializing models - Embedding: {EMBEDDING_MODEL}, Reranker: {RERANKER_MODEL}, Gemini: {GEMINI_MODEL}")
+
 cross_encoder = CrossEncoder(RERANKER_MODEL)
 embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+logger.info("Models initialized successfully.")
 
 
 class ChatRequest(BaseModel):
