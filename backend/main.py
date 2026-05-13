@@ -63,15 +63,26 @@ if reconciled_count > 0:
     logger.info(f"Restored {reconciled_count} FAISS indexes from disk.")
 
 # Model configuration — override via environment variables
-RERANKER_MODEL = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+RERANKER_MODEL  = os.getenv("RERANKER_MODEL",  "cross-encoder/ms-marco-MiniLM-L-6-v2")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL    = os.getenv("GEMINI_MODEL",    "gemini-2.5-flash")
 
-logger.info(f"Initializing models - Embedding: {EMBEDDING_MODEL}, Reranker: {RERANKER_MODEL}, Gemini: {GEMINI_MODEL}")
+# Local model cache baked into the Docker image by download_models.py.
+# If the path doesn't exist (plain local dev), sentence-transformers will
+# fall back to the HuggingFace Hub automatically.
+MODELS_DIR = os.getenv("HF_HOME", os.path.join(os.path.dirname(__file__), "models"))
+os.environ.setdefault("HF_HOME",            MODELS_DIR)
+os.environ.setdefault("TRANSFORMERS_CACHE", MODELS_DIR)
+
+logger.info(f"Model dir : {MODELS_DIR}")
+logger.info(f"Embedding : {EMBEDDING_MODEL} | Reranker: {RERANKER_MODEL} | Gemini: {GEMINI_MODEL}")
 
 cross_encoder = CrossEncoder(RERANKER_MODEL)
-embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-logger.info("Models initialized successfully.")
+embeddings    = HuggingFaceEmbeddings(
+    model_name=EMBEDDING_MODEL,
+    cache_folder=MODELS_DIR,
+)
+logger.info("Models loaded successfully.")
 
 
 class ChatRequest(BaseModel):
