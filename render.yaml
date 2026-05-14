@@ -4,44 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-
-    # Render's standard web port
-    port: 10000
-
-    # Health check — Render will wait for this to return 200 before routing traffic.
-    # Gives the app time to load models from the baked-in /app/models path.
     healthCheckPath: /health
-
-    # Use the Standard plan (512 MB RAM) or higher.
-    # The models are baked into the image, so 512 MB is sufficient at runtime.
-    plan: starter
-
-    # Auto-deploy whenever the main branch is pushed
-    branch: main
-    autoDeploy: true
-
     envVars:
-      # ── Required: set this in the Render dashboard ──────────────────────────
       - key: GEMINI_API_KEY
-        sync: false   # "sync: false" means Render prompts you to set it manually — never hardcoded
-
-      # ── Optional overrides (defaults are fine for production) ───────────────
-      - key: GEMINI_MODEL
-        value: gemini-2.5-flash
-
-      - key: EMBEDDING_MODEL
-        value: all-MiniLM-L6-v2
-
-      - key: RERANKER_MODEL
-        value: cross-encoder/ms-marco-MiniLM-L-6-v2
-
-      # ALLOWED_ORIGINS: set this to your Vercel frontend URL after first deploy.
-      # e.g. https://deepread.vercel.app
-      - key: ALLOWED_ORIGINS
-        value: http://localhost:5173   # update after Vercel deploy
-
-      - key: HF_HOME
-        value: /app/models
-
-      - key: TRANSFORMERS_CACHE
-        value: /app/models
+        sync: false
