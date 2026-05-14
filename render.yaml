@@ -1,7 +1,7 @@
 services:
   - type: web
     name: deepread-backend
-    runtime: docker
+    env: docker
     plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
