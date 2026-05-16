@@ -1,43 +1,40 @@
-# DeepRead (Agentic RAG)
+# DeepRead — Agentic RAG System
 
-DeepRead is an agentic Retrieval-Augmented Generation (RAG) system with a FastAPI backend and a React/Vite frontend. It allows users to upload PDF documents, index them using FAISS, and query them with semantic search, cross-encoder reranking, and an integrated web search agent using Google's Gemini LLM.
+Upload any PDF. Ask anything. Get answers with exact page citations.
 
-## Architecture & Containerization
-This project is fully containerized for deployment on Google Cloud Run:
-- **Backend:** Python 3.11 with FastAPI. Uses a multi-stage Docker build that pre-downloads HuggingFace models (`sentence-transformers`) during image creation to prevent cold-start penalties.
-- **Frontend:** React SPA built with Vite. Uses a multi-stage Docker build to compile the app and serves it via an optimized Nginx container.
+Live Demo: https://agentic-rag-hybrid.vercel.app
 
-## Local Development (Docker)
-Ensure you have Docker and Docker Compose installed.
+## Demo
+[demo video/gif here]
 
-1. **Environment Variables:**
-   Copy `.env.example` to `.env` (optional for local, as docker-compose handles defaults).
-   ```bash
-   cp .env.example .env
-   ```
+## What is this?
+DeepRead is a full-stack Agentic RAG system that lets you upload PDF documents and query them using semantic search, cross-encoder reranking, and an optional live web search agent powered by Gemini 2.5.
 
-2. **Start the Stack:**
-   ```bash
-   make up
-   # or
-   docker-compose up -d
-   ```
-   - Frontend available at `http://localhost:3000`
-   - Backend available at `http://localhost:8000`
+## Architecture
+- Frontend: React + Vite, deployed on Vercel
+- Backend: FastAPI + LangChain, Dockerized on HuggingFace Spaces
+- AI Pipeline: FAISS vector search → Cross-encoder reranking → Gemini 2.5 generation
+- Web Agent: DuckDuckGo search for real-time web augmentation
 
-3. **Stop the Stack:**
-   ```bash
-   make down
-   ```
+## Tech Stack
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, Vanilla CSS, Nginx |
+| Backend | Python, FastAPI, LangChain |
+| AI/ML | FAISS, Sentence Transformers, Cross-Encoder, Gemini 2.5 |
+| Infrastructure | Docker, HuggingFace Spaces, Vercel |
 
-## Cloud Run Deployment
-To deploy to Google Cloud Run, use the included deployment script. Ensure you are authenticated with `gcloud` and have the necessary permissions.
+## Local Development
+1. Copy environment variables:
+cp .env.example .env
 
-```bash
-./deploy.sh
-```
-This script handles building, pushing, deploying, and properly injecting the backend URL into the frontend build.
+2. Start the stack:
+make up
 
-## Technology Stack
-- **Frontend:** React 18, Vite, Vanilla CSS, Nginx (for production serving).
-- **Backend:** FastAPI, LangChain, FAISS, PyPDF, Sentence-Transformers, Google Gemini API (`gemini-2.5-flash`), DuckDuckGo Search.
+3. Access:
+Frontend: http://localhost:3000
+Backend: http://localhost:8000
+
+## Author
+Rehan Khan — AIML Student
+[LinkedIn] | [GitHub]
