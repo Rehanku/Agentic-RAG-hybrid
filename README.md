@@ -5,7 +5,7 @@ Upload any PDF. Ask anything. Get answers with exact page citations.
 Live Demo: https://agentic-rag-hybrid.vercel.app
 
 ## Demo
-https://github.com/Rehanku/Agentic-RAG-hybrid/raw/main/deepread.mov
+[Watch Demo Video](https://github.com/Rehanku/Agentic-RAG-hybrid/blob/main/deepread.mov)
 
 ![Home Screen](assets/home.png)
 
