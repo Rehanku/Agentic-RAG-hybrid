@@ -41,8 +41,8 @@ RUN python download_models.py
 RUN mkdir -p /app/indexes
 
 # ── Runtime config ─────────────────────────────────────────────────────────────
-# Render injects PORT at runtime; default to 10000 (Render's standard)
-ENV PORT=10000
-EXPOSE 10000
+# Hugging Face Spaces requires port 7860
+ENV PORT=7860
+EXPOSE 7860
 
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 1"]
