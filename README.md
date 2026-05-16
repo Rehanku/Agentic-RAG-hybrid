@@ -7,6 +7,10 @@ Live Demo: https://agentic-rag-hybrid.vercel.app
 ## Demo
 https://github.com/Rehanku/Agentic-RAG-hybrid/raw/main/deepread.mov
 
+![Home Screen](assets/home.png)
+
+![Answer with Citations](assets/demo.png)
+
 ## What is this?
 DeepRead is a full-stack Agentic RAG system that lets you upload PDF documents and query them using semantic search, cross-encoder reranking, and an optional live web search agent powered by Gemini 2.5.
 
