@@ -3,9 +3,9 @@ import uuid
 import tempfile
 import shutil
 from pathlib import Path
+from contextlib import asynccontextmanager
 
-
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
@@ -16,8 +16,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-
-from sentence_transformers import CrossEncoder
+from sentence_transformers import CrossEncoder, SentenceTransformer
 from duckduckgo_search import DDGS
 
 import json
@@ -26,7 +25,34 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("deepread")
 
-app = FastAPI(title="DeepRead API", version="2.0.0")
+# Model configuration — override via environment variables
+RERANKER_MODEL  = os.getenv("RERANKER_MODEL",  "cross-encoder/ms-marco-TinyBERT-L-2-v2")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+GEMINI_MODEL    = os.getenv("GEMINI_MODEL",    "gemini-2.5-flash")
+
+MODELS_DIR = os.getenv("HF_HOME", os.path.join(os.path.dirname(__file__), "models"))
+os.environ.setdefault("HF_HOME", MODELS_DIR)
+os.environ.setdefault("TRANSFORMERS_CACHE", MODELS_DIR)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(f"Lifespan startup: Loading models from {MODELS_DIR}")
+    
+    # Instantiating the Embeddings wrapper which uses SentenceTransformer internally
+    app.state.embedder = HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        cache_folder=MODELS_DIR
+    )
+    # Using the fast TinyBERT model for reranking as requested
+    app.state.reranker = CrossEncoder(RERANKER_MODEL)
+    
+    logger.info("Lifespan startup: Models loaded into app.state.")
+    yield
+    logger.info("Lifespan shutdown: Cleaning up models.")
+    app.state.embedder = None
+    app.state.reranker = None
+
+app = FastAPI(title="DeepRead API", version="2.0.0", lifespan=lifespan)
 
 # Read allowed origins from env var; comma-separated list
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
@@ -62,28 +88,6 @@ for _index_dir in INDEXES_DIR.iterdir():
 if reconciled_count > 0:
     logger.info(f"Restored {reconciled_count} FAISS indexes from disk.")
 
-# Model configuration — override via environment variables
-RERANKER_MODEL  = os.getenv("RERANKER_MODEL",  "cross-encoder/ms-marco-MiniLM-L-6-v2")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-GEMINI_MODEL    = os.getenv("GEMINI_MODEL",    "gemini-2.5-flash")
-
-# Local model cache baked into the Docker image by download_models.py.
-# If the path doesn't exist (plain local dev), sentence-transformers will
-# fall back to the HuggingFace Hub automatically.
-MODELS_DIR = os.getenv("HF_HOME", os.path.join(os.path.dirname(__file__), "models"))
-os.environ.setdefault("HF_HOME",            MODELS_DIR)
-os.environ.setdefault("TRANSFORMERS_CACHE", MODELS_DIR)
-
-logger.info(f"Model dir : {MODELS_DIR}")
-logger.info(f"Embedding : {EMBEDDING_MODEL} | Reranker: {RERANKER_MODEL} | Gemini: {GEMINI_MODEL}")
-
-cross_encoder = CrossEncoder(RERANKER_MODEL)
-embeddings    = HuggingFaceEmbeddings(
-    model_name=EMBEDDING_MODEL,
-    cache_folder=MODELS_DIR,
-)
-logger.info("Models loaded successfully.")
-
 
 class ChatRequest(BaseModel):
     session_id: str
@@ -91,20 +95,17 @@ class ChatRequest(BaseModel):
     api_key: str
     web_search: bool = False
 
-
 class SummaryRequest(BaseModel):
     session_id: str
     api_key: str
 
-
-def rerank_docs(query: str, docs: list, top_k: int = 3):
+def rerank_docs(query: str, docs: list, reranker, top_k: int = 3):
     if not docs:
         return []
     pairs = [(query, doc.page_content) for doc in docs]
-    scores = cross_encoder.predict(pairs)
+    scores = reranker.predict(pairs)
     scored = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
     return [(doc, float(score)) for score, doc in scored[:top_k]]
-
 
 def web_search(query: str, max_results: int = 4) -> list[dict]:
     try:
@@ -113,9 +114,8 @@ def web_search(query: str, max_results: int = 4) -> list[dict]:
     except Exception:
         return []
 
-
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(request: Request, file: UploadFile = File(...)):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(400, "Only PDF files allowed")
 
@@ -134,10 +134,10 @@ async def upload_pdf(file: UploadFile = File(...)):
         for i, d in enumerate(docs):
             d.metadata["page"] = i + 1
 
-        splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
+        splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
         chunks = splitter.split_documents(docs)
 
-        vs = FAISS.from_documents(chunks, embeddings)
+        vs = FAISS.from_documents(chunks, request.app.state.embedder)
         vs.save_local(str(index_path))
 
         sessions[session_id] = {
@@ -148,7 +148,6 @@ async def upload_pdf(file: UploadFile = File(...)):
             "index_path": str(index_path),
         }
 
-        # Quick metadata
         full_text = " ".join([d.page_content for d in docs[:5]])
         word_count = sum(len(d.page_content.split()) for d in docs)
 
@@ -163,16 +162,15 @@ async def upload_pdf(file: UploadFile = File(...)):
     finally:
         os.unlink(tmp_path)
 
-
 @app.post("/summarize")
-async def summarize(req: SummaryRequest):
+async def summarize(req: SummaryRequest, request: Request):
     if req.session_id not in sessions:
         raise HTTPException(404, "Session not found")
 
     session = sessions[req.session_id]
     index_path = session["index_path"]
 
-    vs = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+    vs = FAISS.load_local(index_path, request.app.state.embedder, allow_dangerous_deserialization=True)
     sample_docs = vs.similarity_search("main topic summary introduction abstract", k=6)
     context = "\n\n".join([d.page_content for d in sample_docs])
 
@@ -209,20 +207,18 @@ Document content:
         }
     return data
 
-
 @app.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, request: Request):
     if req.session_id not in sessions:
         raise HTTPException(404, "Session not found")
 
     session = sessions[req.session_id]
     index_path = session["index_path"]
 
-    vs = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+    vs = FAISS.load_local(index_path, request.app.state.embedder, allow_dangerous_deserialization=True)
 
-    # Retrieve more, then rerank
     raw_docs = vs.similarity_search(req.question, k=10)
-    reranked = rerank_docs(req.question, raw_docs, top_k=3)
+    reranked = rerank_docs(req.question, raw_docs, request.app.state.reranker, top_k=3)
     top_docs = [doc for doc, score in reranked]
     top_scores = [score for doc, score in reranked]
 
@@ -286,7 +282,6 @@ Provide a clear, well-structured answer. If citing from the document, mention th
         "web_results": web_results,
     }
 
-
 @app.delete("/session/{session_id}")
 async def clear_session(session_id: str):
     if session_id in sessions:
@@ -295,7 +290,6 @@ async def clear_session(session_id: str):
             shutil.rmtree(index_path)
         del sessions[session_id]
     return {"ok": True}
-
 
 @app.get("/health")
 async def health():
@@ -308,12 +302,11 @@ async def health():
         "gemini_model": GEMINI_MODEL,
     }
 
-
 @app.get("/ready")
-async def ready():
+async def ready(request: Request):
     """Liveness probe: confirms models are loaded and the server is ready."""
     try:
-        _ = embeddings.embed_query("ping")
+        _ = request.app.state.embedder.embed_query("ping")
         return {"ready": True}
     except Exception as e:
         from fastapi import Response
