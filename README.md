@@ -41,4 +41,5 @@ Backend: http://localhost:8000
 
 ## Author
 Rehan Khan — AIML Student
-[LinkedIn] | [GitHub]
+[LinkedIn](https://linkedin.com/in/rehan-khan-741088377)
+[GitHub](https://github.com/Rehanku)
